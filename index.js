@@ -6,8 +6,8 @@ const books = "./books";
 const jsons = "./jsons";
 const recaudados = "./recaudados";
 const recaudadosJSON = "./recaudados_json";
-const jsonsFinal = './jsonsFinal';
-const finalPath = './booksfinal';
+const jsonsFinal = "./jsonsfinal";
+const finalPath = "./booksFinal";
 const books2json = async (folderPath, output) => {
   try {
     const files = await fs.readdir(folderPath);
@@ -37,6 +37,7 @@ const deleteRepeated = async () => {
   try {
     const recaudados = await fs.readdir(recaudadosJSON);
     const files = await fs.readdir(jsons);
+    const recaudoUnificado = [];
     for (let recaudo of recaudados) {
       fileName = recaudo;
       const fileContent = await fs.readFile(
@@ -44,32 +45,31 @@ const deleteRepeated = async () => {
         "utf-8"
       );
       recaudo = JSON.parse(fileContent);
-      for (let file of files) {
-        const dataUtil = [];
-        const fileRead = await fs.readFile(path.join(jsons, file), {
-          encoding: "utf-8",
-        });
-        const fileParsed = JSON.parse(fileRead);
-        for (let client of fileParsed) {
-          const foundCoincidence = recaudo.find(
-            (d) => d["Cédula/RUC"] === client["Cedula"]
-          );
-          if (!foundCoincidence) {
-            const strClient = {};
-            for (let key in client) {
-              strClient[key] = String(client[key]).trim();
-            }
-            dataUtil.push(strClient);
-          }
-        }
-        const finalJSON = JSON.stringify(dataUtil);
-        const finalPath = path.join(
-          "./jsonsfinal",
-          "FINAL-" + path.basename(file)
+      recaudoUnificado.push(...recaudo);
+    }
+    for (let file of files) {
+      const dataUtil = [];
+      const fileRead = await fs.readFile(path.join(jsons, file), {
+        encoding: "utf-8",
+      });
+      const fileParsed = JSON.parse(fileRead);
+      for (let client of fileParsed) {
+        const foundCoincidence = recaudoUnificado.find(
+          (d) => d["Cédula/RUC"] === client["Cedula"]
         );
-        await fs.writeFile(finalPath, finalJSON, "utf-8");
-        console.log(`Archivo final de ${finalPath} generado correctamente`);
+        if (!foundCoincidence) {
+          const strClient = {};
+          for (let key in client) {
+            strClient[key] = String(client[key]).trim();
+          }
+          dataUtil.push(strClient);
+        }
       }
+
+      const finalJSON = JSON.stringify(dataUtil);
+      let finalPath = path.join("./jsonsfinal", path.basename(file));
+      await fs.writeFile(finalPath, finalJSON, "utf-8");
+      console.log(`Archivo final de ${finalPath} generado correctamente`);
     }
   } catch (err) {
     console.error("Error al leer el directorio:", fileName, err);
@@ -83,8 +83,14 @@ const convertJSONtoXLSX = async (jsonPath, outputPath) => {
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(workbook, sheet, "Sheet1");
-    const outputFilePath = path.join(outputPath, `${path.basename(jsonPath, ".json")}.xlsx`);
-    await fs.writeFile(outputFilePath, XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
+    const outputFilePath = path.join(
+      outputPath,
+      `${path.basename(jsonPath, ".json")}.xlsx`
+    );
+    await fs.writeFile(
+      outputFilePath,
+      XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
+    );
     console.log(`Archivo final XLSX generado correctamente: ${outputFilePath}`);
   } catch (error) {
     console.error("Error al convertir el archivo JSON:", error);
@@ -104,7 +110,6 @@ const jsonToXLSX = async (folderPath, outputPath) => {
     console.error("Error al leer la carpeta de archivos JSON:", error);
   }
 };
-
 
 async function main() {
   await books2json(books, jsons);
